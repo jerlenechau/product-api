@@ -4,6 +4,17 @@ services:
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "db.adminCommand('ping').ok"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   product-api:
     build: .
@@ -15,7 +26,18 @@ services:
       MONGO_URI: mongodb://mongodb:27017
       MONGO_DB: productdb
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/health').then(r => { if (!r.ok) process.exit(1); return r.json(); }).then(d => process.exit(d.status === 'UP' && d.mongodb === 'CONNECTED' ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   mongo_data:

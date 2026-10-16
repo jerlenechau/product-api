@@ -1,0 +1,44 @@
+name: Product API - CRUD CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  crud-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and start Docker containers
+        run: docker compose up -d --build --wait
+
+      - name: Check Docker container status
+        run: docker compose ps
+
+      - name: Run healthcheck test
+        run: node --test health.test.js
+
+      - name: Run CRUD test
+        run: node --test crud.test.js
+
+      - name: Show Docker logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop Docker containers
+        if: always()
+        run: docker compose down
